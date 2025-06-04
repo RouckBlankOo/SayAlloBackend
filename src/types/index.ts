@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 export interface Property {
-  id: number;
+  _id?: string;          // MongoDB's internal ID
   title: string;
   location: string;
   price: string;
@@ -10,27 +10,13 @@ export interface Property {
   beds?: number;
   baths?: number;
   sqft: number;
-  image: string;
+  image?: string;
   planImage?: string;
-  dateAdded: string;
+  dateAdded?: string;
   featured: boolean;
   description: string;
   tags: string[];
-  isRental: boolean;
-}
-
-export interface AgencyInfo {
-  name: string;
-  phone: string;
-  email: string;
-  address: string;
-  hours: string;
-  socialLinks: {
-    facebook?: string;
-    twitter?: string;
-    instagram?: string;
-    linkedin?: string;
-  };
+  isRental?: boolean;
 }
 
 export interface AuthRequest extends Request {

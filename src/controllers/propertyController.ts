@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Property from '../models/Property';
-import { Property as PropertyType } from '../types';
+import { AuthRequest } from '../types';
 
 export const getProperties = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -13,13 +13,7 @@ export const getProperties = async (req: Request, res: Response): Promise<void> 
 
 export const getProperty = async (req: Request, res: Response): Promise<void> => {
   try {
-    const propertyId = parseInt(req.params.id);
-    if (isNaN(propertyId)) {
-      res.status(400).json({ message: 'Invalid property ID' });
-      return;
-    }
-    
-    const property = await Property.findOne({ id: propertyId });
+    const property = await Property.findById(req.params.id);
     if (!property) {
       res.status(404).json({ message: 'Property not found' });
       return;
@@ -30,77 +24,67 @@ export const getProperty = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const createProperty = async (req: Request, res: Response): Promise<void> => {
+export const createProperty = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const lastProperty = await Property.findOne().sort({ id: -1 });
-    const newId = lastProperty ? lastProperty.id + 1 : 1;
+    // Remove any id field from req.body to avoid conflicts
+    const { id, _id, ...rest } = req.body;
     
-    const propertyData: PropertyType = {
-      ...req.body,
-      id: newId,
-      dateAdded: new Date().toISOString().split('T')[0],
-      isRental: req.body.status === 'À Louer',
-      beds: req.body.beds ? parseInt(req.body.beds.toString()) : undefined,
-      baths: req.body.baths ? parseInt(req.body.baths.toString()) : undefined,
-      sqft: parseInt(req.body.sqft.toString()),
-      featured: req.body.featured || false,
-      description: req.body.description || '',
-      tags: req.body.tags || [],
+    const propertyData = {
+      ...rest,
+      tags: Array.isArray(rest.tags) ? rest.tags : [rest.tags].filter(Boolean),
+      featured: rest.featured === 'true',
+      isRental: rest.isRental === 'true',
+      beds: rest.beds ? parseInt(rest.beds) : undefined,
+      baths: rest.baths ? parseInt(rest.baths) : undefined,
+      sqft: rest.sqft ? parseInt(rest.sqft) : 0
     };
-
+    
     const property = new Property(propertyData);
     await property.save();
     res.status(201).json(property);
   } catch (error) {
-    res.status(400).json({ message: 'Error creating property', error });
+    console.error('Error creating property:', error);
+    res.status(500).json({ message: 'Server error', error });
   }
 };
-
-export const updateProperty = async (req: Request, res: Response): Promise<void> => {
+export const updateProperty = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const propertyId = parseInt(req.params.id);
-    if (isNaN(propertyId)) {
-      res.status(400).json({ message: 'Invalid property ID' });
-      return;
-    }
-
-    const propertyData: Partial<PropertyType> = {
+    const propertyData = {
       ...req.body,
-      isRental: req.body.status === 'À Louer',
-      beds: req.body.beds ? parseInt(req.body.beds.toString()) : undefined,
-      baths: req.body.baths ? parseInt(req.body.baths.toString()) : undefined,
-      sqft: req.body.sqft ? parseInt(req.body.sqft.toString()) : undefined,
+      tags: Array.isArray(req.body.tags) ? req.body.tags : [req.body.tags].filter(Boolean),
+      featured: req.body.featured === 'true',
+      isRental: req.body.isRental === 'true',
+      beds: req.body.beds ? parseInt(req.body.beds) : undefined,
+      baths: req.body.baths ? parseInt(req.body.baths) : undefined,
+      sqft: req.body.sqft ? parseInt(req.body.sqft) : 0
     };
-
-    const property = await Property.findOneAndUpdate(
-      { id: propertyId },
-      propertyData,
+    
+    const property = await Property.findByIdAndUpdate(
+      req.params.id, 
+      propertyData, 
       { new: true }
     );
-
+    
     if (!property) {
       res.status(404).json({ message: 'Property not found' });
       return;
     }
+    
     res.json(property);
   } catch (error) {
-    res.status(400).json({ message: 'Error updating property', error });
+    res.status(500).json({ message: 'Server error', error });
   }
 };
 
-export const deleteProperty = async (req: Request, res: Response): Promise<void> => {
+export const deleteProperty = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const propertyId = parseInt(req.params.id);
-    if (isNaN(propertyId)) {
-      res.status(400).json({ message: 'Invalid property ID' });
-      return;
-    }
-
-    const property = await Property.findOneAndDelete({ id: propertyId });
+    const property = await Property.findByIdAndDelete(req.params.id);
+    
     if (!property) {
       res.status(404).json({ message: 'Property not found' });
       return;
     }
+    
     res.json({ message: 'Property deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });

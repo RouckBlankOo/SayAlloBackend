@@ -4,7 +4,6 @@ import { AuthRequest } from '../types';
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
   try {
-    // Extract the token from Authorization header
     const authHeader = req.header('Authorization');
     
     if (!authHeader) {
